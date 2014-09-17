@@ -1,0 +1,2 @@
+class BindError(Exception):
+	pass
