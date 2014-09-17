@@ -32,12 +32,12 @@ def params():
 
 	packages = ["wifi_ap"]
 	dependency_links = [
-		"https://github.com/foosel/wifi/tarball/master#egg=wifi-1.0.1"
+		"https://github.com/foosel/wifi/tarball/wifi-ap#egg=wifi-1.0.0"
 	]
 	install_requires = [
 		"setuptools",
 		"netaddr",
-		"wifi==1.0.1"
+		"wifi==1.0.0"
 	]
 
 	test_suite = "tests"
