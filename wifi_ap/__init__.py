@@ -8,7 +8,7 @@ import re
 from wifi import Scheme
 import wifi.subprocess_compat as subprocess
 
-from wifi_ap.exceptions import BindError
+from wifi_ap.exceptions import ApBindError, ApInterfaceError
 
 
 
@@ -103,14 +103,23 @@ class Hostapd(object):
 			self._logger.warn("Could not delete %s: %s" % (self.configfile, e))
 
 	def activate(self):
-		subprocess.check_call([self.__class__.hostapd, "-dd", "-B", self.configfile], stderr=subprocess.STDOUT)
-		return True
+		try:
+			output = subprocess.check_output([self.__class__.hostapd, "-dd", "-B", self.configfile], stderr=subprocess.STDOUT)
+			self._logger.info("Started hostapd: {output}".format(output=output))
+			return True
+		except subprocess.CalledProcessError as e:
+			self._logger.warn("Error while starting hostapd: {output}".format(output=e.output))
+			raise e
 
 	def deactivate(self):
 		pid = self.get_pid()
 		if pid is None:
 			return
-		subprocess.check_call(["kill", pid])
+		try:
+			subprocess.check_output(["kill", pid])
+		except subprocess.CalledProcessError as e:
+			self._logger.warn("Error while stopping hostapd: {output}".format(output=e.output))
+			raise e
 
 	def get_pid(self):
 		pids = [pid for pid in os.listdir("/proc") if pid.isdigit()]
@@ -193,7 +202,7 @@ class Hostapd(object):
 		if matches:
 			return True
 		else:
-			raise BindError("Could not bind hostapd %r to interface %s:\n%s" % (self, self.interface, output))
+			raise ApBindError("Could not bind hostapd %r to interface %s:\n%s" % (self, self.interface, output))
 
 
 class Dnsmasq(object):
@@ -440,7 +449,12 @@ class Dnsmasq(object):
 	def activate(self):
 		""" Activates this config. """
 
-		subprocess.check_call([self.__class__.dnsmasq, "--conf-file={file}".format(file=self.configfile)])
+		try:
+			output = subprocess.check_output([self.__class__.dnsmasq, "--conf-file={file}".format(file=self.configfile)], stderr=subprocess.STDOUT)
+			self._logger.info("Started dnsmasq: {output}".format(output=output))
+		except subprocess.CalledProcessError as e:
+			self._logger.warn("Error while starting dnsmasq: {output}".format(output=e.output))
+			raise e
 
 	def deactivate(self):
 		""" Deactivates this config. """
@@ -448,7 +462,11 @@ class Dnsmasq(object):
 		pid = self.get_pid()
 		if pid is None:
 			return
-		subprocess.check_call(["kill", pid])
+		try:
+			subprocess.check_output(["kill", pid])
+		except subprocess.CalledProcessError as e:
+			self._logger.warn("Error while stopping dnsmasq: {output}".format(output=e.output))
+			raise e
 
 	def get_pid(self):
 		""" Get's the pid of the dnsmasq process running this config, or None if not currently running. """
@@ -683,16 +701,34 @@ class AccessPoint(object):
 	def activate(self):
 		""" Activates the access point by activating all wrapped configurations. """
 
-		self.scheme.activate()
-		self.hostapd.activate()
-		self.dnsmasq.activate()
+		try:
+			self.hostapd.activate()
+			try:
+				self.scheme.activate()
+				self._logger.info("Started scheme")
+			except subprocess.CalledProcessError as e:
+				self._logger.warn("Error while activating scheme: {output}".format(output=e.output))
+				raise e
+			self.dnsmasq.activate()
+		except subprocess.CalledProcessError as e:
+			self._logger.warn("Error while activating access point")
+			raise ApInterfaceError("Error while activating access point", e)
 
 	def deactivate(self):
 		""" Deactivates the access point by deactivating all wrapped configurations. """
 
-		self.dnsmasq.deactivate()
-		self.hostapd.deactivate()
-		self.scheme.deactivate()
+		try:
+			self.dnsmasq.deactivate()
+			try:
+				self.scheme.deactivate()
+				self._logger.info("Stopped scheme")
+			except subprocess.CalledProcessError as e:
+				self._logger.warn("Error while deactivating scheme: {output}".format(output=e.output))
+				raise e
+			self.hostapd.deactivate()
+		except subprocess.CalledProcessError as e:
+			self._logger.warn("Error while deactivating access point")
+			raise ApInterfaceError("Error while deactivating access point", e)
 
 	@property
 	def name(self):
