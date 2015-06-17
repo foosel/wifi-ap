@@ -8,7 +8,7 @@ import re
 from wifi import Scheme
 import wifi.subprocess_compat as subprocess
 
-from wifi_ap.exceptions import ApBindError, ApInterfaceError
+from wifi_ap.exceptions import ApError, ApBindError, ApInterfaceError, ApSchemeError
 
 
 
@@ -708,7 +708,7 @@ class AccessPoint(object):
 				self._logger.info("Started scheme")
 			except subprocess.CalledProcessError as e:
 				self._logger.warn("Error while activating scheme: {output}".format(output=e.output))
-				raise e
+				raise ApSchemeError("Error while activating scheme".format(output=e.output), e)
 			self.dnsmasq.activate()
 		except subprocess.CalledProcessError as e:
 			self._logger.warn("Error while activating access point")
@@ -724,7 +724,7 @@ class AccessPoint(object):
 				self._logger.info("Stopped scheme")
 			except subprocess.CalledProcessError as e:
 				self._logger.warn("Error while deactivating scheme: {output}".format(output=e.output))
-				raise e
+				raise ApSchemeError("Error while deactivating scheme", e)
 			self.hostapd.deactivate()
 		except subprocess.CalledProcessError as e:
 			self._logger.warn("Error while deactivating access point")

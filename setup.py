@@ -35,11 +35,9 @@ def params():
 		"https://github.com/foosel/wifi/archive/wifi-ap.zip#egg=wifi-dev"
 	]
 	install_requires = [
-		"setuptools"
-	]
-	requires = [
+		"setuptools",
 		"netaddr",
-		"wifi==dev"
+		"wifi"
 	]
 
 	test_suite = "tests"
